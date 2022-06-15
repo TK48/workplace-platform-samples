@@ -293,12 +293,25 @@ function CreateNewGroupPosts
                         }
                         else
                         {
-                            $title_obj = $postToAdd.attachments.data[$ib].title
-                            $title = $title_obj -replace "\s[·] version \d", ""
+                            if ($postToAdd.attachments.data[$ib].url) {
+                                $title_obj = $postToAdd.attachments.data[$ib].title
+                                $title = $title_obj -replace "\s[·] version \d", ""
+                                if ($postToAdd.attachments.data[$ib].url.EndsWith('/')) {
+                                    continue
+                                }
+                                Invoke-WebRequest $postToAdd.attachments.data[$ib].url -OutFile $title
+                            } elseif ($postToAdd.attachments.data[$ib].subattachments) {
+                                $title_obj = $postToAdd.attachments.data[$ib].subattachments.data[0].title
+                                $title = $title_obj -replace "\s[·] version \d", ""
+                                if ($postToAdd.attachments.data[$ib].subattachments.data[0].url.EndsWith('/')) {
+                                    continue
+                                }
+                                Invoke-WebRequest $postToAdd.attachments.data[$ib].subattachments.data[0].url -OutFile $title
+                            } else {
+                                continue
+                            }
 
-                            Invoke-WebRequest $postToAdd.attachments.data[$ib].url -OutFile $title
-
-                            $FilePath = '' + (Get-Location) + '\' + $title;
+                            $FilePath = '' + (Get-Location) + [IO.Path]::DirectorySeparatorChar + $title;
                             $File = Get-ChildItem $FilePath
 
                             $URL = 'https://graph.workplace.com/group_file_revisions';
@@ -322,7 +335,7 @@ function CreateNewGroupPosts
                             "--$boundary--$LF"
                             ) -join $LF
 
-                            $send_file = Invoke-RestMethod -ErrorAction Stop -Uri $URL -Method Post -TimeoutSec 2147483647 -ContentType "multipart/form-data; boundary=`"$boundary`"" -Headers @{ Authorization = "Bearer " + $global:destToken } -UserAgent "GithubRep-GroupCloner" -Body $bodyLines
+                            $send_file = Invoke-RestMethod -ErrorAction Stop -Uri $URL -Method Post -ContentType "multipart/form-data; boundary=`"$boundary`"" -Headers @{ Authorization = "Bearer " + $global:destToken } -UserAgent "GithubRep-GroupCloner" -Body $bodyLines
 
                             $attachments += $send_file.id + ','
 
